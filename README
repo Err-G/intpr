@@ -1,3 +1,6 @@
 This is a simple project, i'm trying to make an interpreter in the most
 independent way possible. Building my own libc and helper functions along the
 way.
+
+compiling:
+	make main
