@@ -187,7 +187,10 @@ int main(void) {
 		i = -1;
 		while (words[++i]) {
 			_putstr(words[i]);
-			_putstr(" -> ");
+			if (words[i + 1])
+				_putstr(" : ");
+			else
+				_putstr(" !");
 		}
 		i = -1;
 		while (words[++i]) free(words[i]);
