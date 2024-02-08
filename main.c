@@ -7,6 +7,13 @@ int _strlen(char *str) {
 	return (len);
 }
 
+char *_strcpy(char *a, char *b) {
+	int i = -1;
+	while (b[++i]) a[i] = b[i];
+	a[i] = 0;
+	return (a);
+}
+
 void *_calloc(int m, int s) {
 	void *res = malloc(m * s);
 	int i = -1;
@@ -15,20 +22,22 @@ void *_calloc(int m, int s) {
 	return (res);
 }
 
+char *_strdup(char *str) {
+	char *res = _calloc(_strlen(str) + 1, sizeof(char));
+	if (!res) return (NULL);
+	_strcpy(res, str);
+	return (res);
+}
+
 char *str_join(char *a, char *b) {
-	char *res = NULL;
-	int i = -1;
-	int j = 0;
-	if (!b)
-		return (NULL);
-	if (!a)
-		a = _calloc(1, 1);
-	res = _calloc(_strlen(a) + _strlen(b) + 1, 1);
-	while (a[++i])
-		res[i] = a[i];
-	while (b[j])
-		res[i++] = b[j++];
-	res[i] = 0;
+	if (!b) return (NULL);
+	if (!a) return (_strdup(b));
+	int len_a = _strlen(a);
+	int len_b = _strlen(b);
+	char *res = _calloc(len_a + len_b + 1, 1);
+	if (!res) return (NULL);
+	_strcpy(res, a);
+	_strcpy(res + len_a, b);
 	free(a);
 	return (res);
 }
@@ -134,35 +143,55 @@ char *_strtok(char *str, char *delim) {
 }
 
 int word_count(char *str, char *delim) {
-	int i = -1;
 	int res = 0;
-	char *tok = _strtok(str, delim);
-	while (tok) {
-		res++;
-		tok = _strtok(NULL, delim);
+	while (*str) {
+		str += _strspn(str, delim);
+		if (*str) {
+			str += _strcspn(str, delim);
+			res++;
+		}
 	}
 	return (res);
 }
 
 char **_split(char *str, char *delim) {
-	int i = -1;
+	int i = 0;
 	char **res = _calloc(word_count(str, delim) + 1, sizeof(char *));
-	while (_strchr(delim, str[i + 1])) i++;
-	while (str[++i]) {
+	char *tok = _strtok(str, delim);
+	if (!res) return (NULL);
+	while (tok) {
+		res[i] = _strdup(tok);
+		if (!res[i]) {
+			i = -1;
+			while (res[++i]) free(res[i]);
+			free(res);
+			return (NULL);
+		}
+		tok = _strtok(NULL, delim);
+		i++;
 	}
-	str[i] = 0;
+	res[i] = 0;
 	return (res);
 }
 
-int main(void)
-{
+int main(void) {
 	char *line = get_line(0);
-	int n = 0;
+	char **words = NULL;
+	int i = 0;
 	while (line) {
 		if (_strcmp(line, "quit\n") == 0 || _strcmp(line, "exit\n") == 0)
 			break ;
-		n = word_count(line, " \n");
-		_putnbr(n);
+		words = _split(line, " \n");
+		if (!words)
+			break ;
+		i = -1;
+		while (words[++i]) {
+			_putstr(words[i]);
+			_putstr(" -> ");
+		}
+		i = -1;
+		while (words[++i]) free(words[i]);
+		free(words);
 		/*
 		n = _atoi(line);
 		_putnbr(n);
