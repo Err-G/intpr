@@ -40,9 +40,9 @@ char *get_line(int fd) {
 	len = read(fd, &buff, 1);
 	while (len > 0) {
 		buff[1] = 0;
+		line = str_join(line, buff);
 		if (buff[0] == '\n')
 			break ;
-		line = str_join(line, buff);
 		len = read(fd, &buff, 1);
 	}
 	if (len <= 0) {
@@ -92,7 +92,66 @@ int _strcmp(char *a, char *b) {
 			return (a[i] - b[i]);
 		i++;
 	}
-	return (0);
+	return (a[i] - b[i]);
+}
+
+char *_strchr(char *str, int c) {
+	int i = -1;
+	while (str[++i])
+		if (str[i] == (char)c) return (&str[i]);
+	return (NULL);
+}
+
+int _strspn(char *str, char *accept) {
+	int i = 0;
+	while (str[i] && _strchr(accept, str[i])) i++;
+	return (i);
+}
+
+int _strcspn(char *str, char *reject) {
+	int i = 0;
+	while (str[i] && !_strchr(reject, str[i])) i++;
+	return (i);
+}
+
+char *_strtok(char *str, char *delim) {
+	static char *buf;
+	int i = 0;
+	if (str) buf = str;
+	if (!buf) return (NULL);
+	str = buf + _strspn(buf, delim);
+	buf = str + _strcspn(str, delim);
+	if (buf == str) {
+		buf = NULL;
+		return (buf);
+	}
+	if (*buf) {
+		*buf = 0;
+		buf++;
+	} else
+		buf = 0;
+	return (str);
+}
+
+int word_count(char *str, char *delim) {
+	int i = -1;
+	int res = 0;
+	char *tok = _strtok(str, delim);
+	while (tok) {
+		res++;
+		tok = _strtok(NULL, delim);
+	}
+	return (res);
+}
+
+char **_split(char *str, char *delim) {
+	int i = -1;
+	char **res = _calloc(word_count(str, delim) + 1, sizeof(char *));
+	while (_strchr(delim, str[i + 1])) i++;
+	while (str[++i]) {
+	}
+	str[i] = 0;
+	return (res);
 }
 
 int main(void)
@@ -100,12 +159,18 @@ int main(void)
 	char *line = get_line(0);
 	int n = 0;
 	while (line) {
-		if (_strcmp(line, "quit") == 0 || _strcmp(line, "exit") == 0)
+		if (_strcmp(line, "quit\n") == 0 || _strcmp(line, "exit\n") == 0)
 			break ;
+		n = word_count(line, " \n");
+		_putnbr(n);
+		/*
 		n = _atoi(line);
 		_putnbr(n);
+		*/
 		_putstr("\n");
+		free(line);
 		line = get_line(0);
 	}
+	free(line);
 	return (0);
 }
