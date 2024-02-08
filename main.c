@@ -29,7 +29,7 @@ char *_strdup(char *str) {
 	return (res);
 }
 
-char *str_join(char *a, char *b) {
+char *_strjoin(char *a, char *b) {
 	if (!b) return (NULL);
 	if (!a) return (_strdup(b));
 	int len_a = _strlen(a);
@@ -42,14 +42,14 @@ char *str_join(char *a, char *b) {
 	return (res);
 }
 
-char *get_line(int fd) {
+char *_getline(int fd) {
 	char *line = NULL;
 	char buff[2] = {0};
 	int len = 0;
 	len = read(fd, &buff, 1);
 	while (len > 0) {
 		buff[1] = 0;
-		line = str_join(line, buff);
+		line = _strjoin(line, buff);
 		if (buff[0] == '\n')
 			break ;
 		len = read(fd, &buff, 1);
@@ -111,6 +111,14 @@ char *_strchr(char *str, int c) {
 	return (NULL);
 }
 
+char *_strpbrk(char *str, char *accept)
+{
+	int i = -1;
+	while (str[++i])
+		if (_strchr(accept, str[i])) return (&str[i]);
+	return (NULL);
+}
+
 int _strspn(char *str, char *accept) {
 	int i = 0;
 	while (str[i] && _strchr(accept, str[i])) i++;
@@ -142,7 +150,7 @@ char *_strtok(char *str, char *delim) {
 	return (str);
 }
 
-int word_count(char *str, char *delim) {
+int _wordcount(char *str, char *delim) {
 	int res = 0;
 	while (*str) {
 		str += _strspn(str, delim);
@@ -154,19 +162,21 @@ int word_count(char *str, char *delim) {
 	return (res);
 }
 
+void *_wordfree(char **str) {
+	int i = -1;
+	while (str[++i]) free(str[i]);
+	free(str);
+	return (NULL);
+}
+
 char **_split(char *str, char *delim) {
 	int i = 0;
-	char **res = _calloc(word_count(str, delim) + 1, sizeof(char *));
+	char **res = _calloc(_wordcount(str, delim) + 1, sizeof(char *));
 	char *tok = _strtok(str, delim);
 	if (!res) return (NULL);
 	while (tok) {
 		res[i] = _strdup(tok);
-		if (!res[i]) {
-			i = -1;
-			while (res[++i]) free(res[i]);
-			free(res);
-			return (NULL);
-		}
+		if (!res[i]) return ((char **)_wordfree(res));
 		tok = _strtok(NULL, delim);
 		i++;
 	}
@@ -174,35 +184,79 @@ char **_split(char *str, char *delim) {
 	return (res);
 }
 
+int _strisdigit(char *str) {
+	return (_strlen(str) == _strspn(str, "0123456789"));
+}
+
+typedef struct stk stk;
+struct stk {
+	int *data;
+	int top;
+	int cap;
+};
+
+stk *stk_new(int cap) {
+	stk *res = _calloc(1, sizeof(stk));
+	if (!res) return (NULL);
+	res->data = _calloc(cap, sizeof(int));
+	if (!res->data) {
+		free(res);
+		return (NULL);
+	}
+	res->top = 0;
+	res->cap = cap;
+	return (res);
+}
+
+void stk_del(stk *s) {
+	free(s->data);
+	free(s);
+}
+
+void stk_push(stk *s, int value) {
+	s->data[s->top] = value;
+	s->top = (s->top + 1) % s->cap;
+}
+
+int stk_pop(stk *s) {
+	s->top = (s->top - 1 + s->cap) % s->cap;
+	return (s->data[s->top]);
+}
+
 int main(void) {
-	char *line = get_line(0);
+	char *line = _getline(0);
 	char **words = NULL;
 	int i = 0;
+	stk *s = stk_new(0x100);
+	int exit = 0;
 	while (line) {
-		if (_strcmp(line, "quit\n") == 0 || _strcmp(line, "exit\n") == 0)
+		if (!s)
 			break ;
 		words = _split(line, " \n");
-		if (!words)
-			break ;
+		if (!words) break ;
 		i = -1;
 		while (words[++i]) {
-			_putstr(words[i]);
-			if (words[i + 1])
-				_putstr(" : ");
-			else
-				_putstr(" !");
+			if (_strisdigit(words[i]))
+				stk_push(s, _atoi(words[i]));
+			else if (_strcmp(words[i], "+") == 0)
+				stk_push(s, stk_pop(s) + stk_pop(s));
+			else if (_strcmp(words[i], ".") == 0) {
+				_putnbr(stk_pop(s));
+				_putstr("\n");
+			} else if (_strcmp(words[i], "quit") == 0 || _strcmp(words[i], "exit") == 0)
+				exit = 1;
+			else {
+				_putstr(words[i]);
+				_putstr(" ?\n");
+			}
 		}
-		i = -1;
-		while (words[++i]) free(words[i]);
-		free(words);
-		/*
-		n = _atoi(line);
-		_putnbr(n);
-		*/
-		_putstr("\n");
+		_wordfree(words);
 		free(line);
-		line = get_line(0);
+		if (!exit) {
+			line = _getline(0);
+		} else line = NULL;
 	}
 	free(line);
+	if (s) stk_del(s);
 	return (0);
 }
