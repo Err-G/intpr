@@ -188,75 +188,213 @@ int _strisdigit(char *str) {
 	return (_strlen(str) == _strspn(str, "0123456789"));
 }
 
-typedef struct stk stk;
-struct stk {
-	int *data;
-	int top;
-	int cap;
+typedef struct node node;
+struct node {
+	node *next;
+	void *data;
 };
 
-stk *stk_new(int cap) {
-	stk *res = _calloc(1, sizeof(stk));
+node *node_new(void *data) {
+	node *res = _calloc(1, sizeof(node));
 	if (!res) return (NULL);
-	res->data = _calloc(cap, sizeof(int));
-	if (!res->data) {
-		free(res);
-		return (NULL);
-	}
-	res->top = 0;
-	res->cap = cap;
+	res->data = data;
+	res->next = NULL;
 	return (res);
 }
 
-void stk_del(stk *s) {
-	free(s->data);
-	free(s);
+node *node_getlast(node *n) {
+	node *last = n;
+	if (!last) return (NULL);
+	while (last->next)
+		last = last->next;
+	return (last);
 }
 
-void stk_push(stk *s, int value) {
-	s->data[s->top] = value;
-	s->top = (s->top + 1) % s->cap;
+void node_addend(node **n, void *data) {
+	node *new_n = node_new(data);
+	if (!new_n) return ;
+	if (!*n) {
+		*n = new_n;
+		return ;
+	}
+	node *last = node_getlast(*n);
+	last->next = new_n;
 }
 
-int stk_pop(stk *s) {
-	s->top = (s->top - 1 + s->cap) % s->cap;
-	return (s->data[s->top]);
+void node_addstart(node **n, void *data) {
+	node *new_n = node_new(data);
+	if (!new_n) return ;
+	if (!*n) {
+		*n = new_n;
+		return ;
+	}
+	new_n->next = *n;
+	*n = new_n;
+}
+
+void node_delone(node *n, void (*del)(void *)) {
+	if (!n) return ;
+	if (del)
+		del(n->data);
+	free(n);
+}
+
+void node_clear(node **n, void (*del)(void *)) {
+	node *next;
+	if (!n) return ;
+	while (*n) {
+		next = (*n)->next;
+		node_delone(*n, del);
+		*n = next;
+	}
+}
+
+void node_iter(node *n, void (*f)(void *)) {
+	if (!n || !f) return ;
+	while (n) {
+		f(n->data);
+		n = n->next;
+	}
+}
+
+void node_nbrdel(void *nbr) {
+	free(nbr);
+}
+
+void node_push(node **n, int data) {
+	int *res = _calloc(1, sizeof(int));
+	if (!res) return ;
+	*res = data;
+	node_addstart(n, res);
+}
+
+int node_pop(node **n) {
+	if (!*n) return (0);
+	int data = *((int *)(*n)->data);
+	node *next = (*n)->next;
+	node_delone(*n, node_nbrdel);
+	*n = next;
+	return (data);
+}
+
+typedef struct word word;
+struct word {
+	char *name;
+	void (*def)(void *);
+};
+
+word *word_new(char *name, void (*def)(void *)) {
+	word *res = _calloc(1, sizeof(word));
+	if (!res) return (NULL);
+	res->name = _strdup(name);
+	if (!res->name) {
+		free(res);
+		return (NULL);
+	}
+	res->def = def;
+	return (res);
+}
+
+void word_del(void *data) {
+	word *w = (word *)data;
+	if (!w) return ;
+	free(w->name);
+	free(w);
+}
+
+void word_exec(word *w, void *data) {
+	if (!w || !w->def) return ;
+	w->def(data);
+}
+
+int word_cmp(word *w, char *name) {
+	if (!w || !w->name) return (-1);
+	return (_strcmp(w->name, name));
+}
+
+word *word_find(node *dict, char *name) {
+	while (dict) {
+		word *w = (word *)dict->data;
+		if (word_cmp(w, name) == 0) return (w);
+		dict = dict->next;
+	}
+	return (NULL);
+}
+
+typedef struct intpr intpr;
+struct intpr {
+	char *input;
+	node *dict;
+	node *data;
+	int quit;
+};
+
+void w_quit(void *p) {
+	if (!p) return ;
+	intpr *pr = (intpr *)p;
+	_putstr("bye!\n");
+	pr->quit = 1;
+}
+
+void w_add(void *p) {
+	if (!p) return ;
+	intpr *pr = (intpr *)p;
+	int a = node_pop(&pr->data);
+	int b = node_pop(&pr->data);
+	node_push(&pr->data, b + a);
+}
+
+void w_print(void *p) {
+	if (!p) return ;
+	intpr *pr = (intpr *)p;
+	node *last = node_getlast(pr->data);
+	int nbr = 0;
+	if (last && last->data)
+		nbr = *(int *)last->data;
+	_putnbr(nbr);
+	_putstr("\n");
+}
+
+void intpr_init(intpr *pr) {
+	node_addstart(&pr->dict, word_new("bye", w_quit));
+	node_addstart(&pr->dict, word_new("+", w_add));
+	node_addstart(&pr->dict, word_new(".", w_print));
+}
+
+void intpr_clear(intpr *pr) {
+	if (pr->data)
+		node_clear(&pr->data, node_nbrdel);
+	if (pr->dict)
+		node_clear(&pr->dict, word_del);
+}
+
+void intpr_eval(char *input, intpr *pr) {
+	pr->input = _strtok(input, " \n");
+	while (pr->input) {
+		if (_strisdigit(pr->input))
+			node_push(&pr->data, _atoi(pr->input));
+		else if (word_find(pr->dict, pr->input))
+			word_exec(word_find(pr->dict, pr->input), (void *)pr);
+		else {
+			_putstr(pr->input);
+			_putstr(" ?\n");
+		}
+		pr->input = _strtok(NULL, " \n");
+	}
 }
 
 int main(void) {
 	char *line = _getline(0);
-	char **words = NULL;
-	int i = 0;
-	stk *s = stk_new(0x100);
-	int exit = 0;
-	while (line) {
-		if (!s)
-			break ;
-		words = _split(line, " \n");
-		if (!words) break ;
-		i = -1;
-		while (words[++i]) {
-			if (_strisdigit(words[i]))
-				stk_push(s, _atoi(words[i]));
-			else if (_strcmp(words[i], "+") == 0)
-				stk_push(s, stk_pop(s) + stk_pop(s));
-			else if (_strcmp(words[i], ".") == 0) {
-				_putnbr(stk_pop(s));
-				_putstr("\n");
-			} else if (_strcmp(words[i], "quit") == 0 || _strcmp(words[i], "exit") == 0)
-				exit = 1;
-			else {
-				_putstr(words[i]);
-				_putstr(" ?\n");
-			}
-		}
-		_wordfree(words);
-		free(line);
-		if (!exit) {
+	intpr pr = {0};
+	intpr_init(&pr);
+	while (line && !pr.quit) {
+		intpr_eval(line, &pr);
+		if (!pr.quit) {
+			free(line);
 			line = _getline(0);
-		} else line = NULL;
+		}
 	}
+	intpr_clear(&pr);
 	free(line);
-	if (s) stk_del(s);
 	return (0);
 }
