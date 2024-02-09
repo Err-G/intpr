@@ -355,10 +355,19 @@ void w_print(void *p) {
 	_putstr("\n");
 }
 
+void w_drop(void *p) {
+	if (!p) return ;
+	intpr *pr = (intpr *)p;
+	node_pop(&pr->data);
+}
+
 void intpr_init(intpr *pr) {
 	node_addstart(&pr->dict, word_new("bye", w_quit));
+	node_addstart(&pr->dict, word_new("quit", w_quit));
+	node_addstart(&pr->dict, word_new("exit", w_quit));
 	node_addstart(&pr->dict, word_new("+", w_add));
 	node_addstart(&pr->dict, word_new(".", w_print));
+	node_addstart(&pr->dict, word_new("drop", w_drop));
 }
 
 void intpr_clear(intpr *pr) {
